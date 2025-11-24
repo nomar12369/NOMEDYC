@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nomedyc v5.2 - Sync Force</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; color: #e2e8f0; background-attachment: fixed; }
+        
+        /* CYBER THEME */
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+        .btn-primary { background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%); color: white; font-weight: 700; transition: all 0.2s; box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(6, 182, 212, 0.5); }
+        .input-modern { width: 100%; padding: 12px 16px; border: 1px solid #334155; border-radius: 12px; background: #0f172a; color: #fff; outline: none; transition: 0.3s; }
+        .input-modern:focus { border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
+        .nav-btn { padding: 12px 20px; border-radius: 12px; font-weight: 600; color: #94a3b8; transition: 0.3s; cursor: pointer; }
+        .nav-btn.active { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.2); }
+        #loginOverlay { background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(20px); z-index: 100; }
+
+        /* EFECTOS MIEDO */
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .alarm-bg { background: radial-gradient(circle, rgba(220,38,38,0.6) 0%, rgba(0,0,0,1) 100%) !important; }
+        .card-error { border: 2px solid #ef4444 !important; box-shadow: 0 0 50px rgba(239, 68, 68, 0.8) !important; animation: shake 0.4s ease-in-out; }
+        .hacker-text { font-family: 'Share Tech Mono', monospace; color: #ef4444 !important; text-transform: uppercase; letter-spacing: 2px; }
+    </style>
+</head>
+<body class="p-3 md:p-6">
+
+    <div id="loginOverlay" class="fixed inset-0 flex flex-col items-center justify-center p-4">
+        
+        <div id="loadingState" class="text-center glass-card p-8 w-full max-w-sm">
+            <div class="animate-spin text-5xl text-cyan-400 mb-6 mx-auto"><i class="fas fa-satellite-dish"></i></div>
+            <h2 class="text-xl font-bold text-white mb-2">Verificando Seguridad...</h2>
+            <p class="text-slate-400 text-xs mb-4">Consultando base de datos en la nube</p>
+            <div class="w-full bg-slate-700 rounded-full h-2 mb-4 overflow-hidden">
+                <div class="bg-cyan-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+            </div>
+            <button onclick="initialSync()" class="text-xs text-cyan-500 underline hover:text-white">Reintentar conexión</button>
+        </div>
+
+        <div id="loginState" class="glass-card p-8 w-full max-w-sm text-center hidden relative overflow-hidden transition-all">
+            <div class="text-5xl mb-4 text-cyan-400"><i class="fas fa-fingerprint"></i></div>
+            <h2 class="text-2xl font-bold text-white mb-2">ACCESO RESTRINGIDO</h2>
+            <p class="text-sm text-slate-400 mb-6">Sistema Protegido</p>
+            <input type="password" id="pinInput" placeholder="••••" maxlength="4" class="text-center text-4xl font-bold tracking-[0.5em] w-full input-modern mb-6 focus:ring-0">
+            <button onclick="attemptLogin()" class="w-full btn-primary py-3 rounded-xl text-lg shadow-lg">DESBLOQUEAR</button>
+            
+            <div id="errorBanner" class="absolute top-0 left-0 w-full h-full bg-red-900/95 flex flex-col items-center justify-center hidden z-20 backdrop-blur-sm">
+                <i class="fas fa-hand-paper text-6xl text-white mb-4 animate-pulse"></i>
+                <h1 class="text-3xl font-bold text-white hacker-text">ACCESO DENEGADO</h1>
+                <p class="text-red-200 mt-2 text-sm font-mono">IP REGISTRADA</p>
+            </div>
+        </div>
+        
+        <div id="setupState" class="glass-card p-8 w-full max-w-sm text-center hidden">
+            <div class="text-5xl mb-4 text-purple-400"><i class="fas fa-key"></i></div>
+            <h2 class="text-xl font-bold text-white">Configuración Inicial</h2>
+            <p class="text-sm text-slate-400 mb-6 mt-2">No se detectó seguridad en la nube.<br>Cree un PIN Maestro:</p>
+            <input type="text" id="newPinInput" placeholder="1234" maxlength="4" class="text-center text-3xl font-bold w-full input-modern mb-6">
+            <button onclick="createMasterPin()" class="w-full btn-primary py-3 rounded-xl">GUARDAR EN NUBE</button>
+        </div>
+    </div>
+
+    <div id="appContent" class="hidden max-w-7xl mx-auto">
+        <div class="glass-card p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-cyan-500/20 p-3 rounded-full text-cyan-400 text-2xl shadow-[0_0_15px_rgba(34,211,238,0.3)]"><i class="fas fa-cube"></i></div>
+                <div>
+                    <h1 class="text-2xl font-extrabold text-white tracking-wider">Nomedyc <span class="text-cyan-400 text-sm bg-cyan-900/30 px-2 py-0.5 rounded">v5.2</span></h1>
+                    <div id="cloudStatus" class="text-[10px] font-bold text-slate-400 flex items-center gap-2 mt-1 uppercase tracking-widest"><span class="w-2 h-2 rounded-full bg-green-400 box-shadow-green"></span> Online</div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="changePin()" class="px-4 py-2 bg-slate-700/50 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 border border-slate-600 transition"><i class="fas fa-lock"></i> PIN</button>
+                <button onclick="saveCloud(true)" class="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-600/30 border border-blue-500/30 transition"><i class="fas fa-cloud-upload-alt"></i> Forzar Guardado</button>
+                <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-600/30 border border-green-500/30 transition"><i class="fas fa-file-csv"></i> Excel</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-5 border-l-4 border-blue-500">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ventas Totales</p>
+                <h3 class="text-2xl font-extrabold text-white mt-1" id="dashTotal">$0.00</h3>
+            </div>
+            <div class="glass-card p-5 border-l-4 border-orange-500">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pérdida Tasa</p>
+                <h3 class="text-2xl font-extrabold text-orange-400 mt-1" id="dashLoss">$0.00</h3>
+            </div>
+            <div class="glass-card p-5 border-l-4 border-green-500">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ganancia Real</p>
+                <h3 class="text-2xl font-extrabold text-green-400 mt-1" id="dashProfit">$0.00</h3>
+            </div>
+            <div class="glass-card p-5 border-l-4 border-purple-500">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Por Cobrar</p>
+                <h3 class="text-2xl font-extrabold text-purple-400 mt-1" id="dashDebt">$0.00</h3>
+            </div>
+        </div>
+
+        <div class="glass-card p-2 mb-6 flex overflow-x-auto gap-2">
+            <button onclick="showTab('vender')" id="btn-vender" class="nav-btn active flex-1"><i class="fas fa-cash-register mr-2"></i> CAJA</button>
+            <button onclick="showTab('inventario')" id="btn-inventario" class="nav-btn flex-1"><i class="fas fa-boxes mr-2"></i> STOCK</button>
+            <button onclick="showTab('historial')" id="btn-historial" class="nav-btn flex-1"><i class="fas fa-history mr-2"></i> HISTORIAL</button>
+            <button onclick="showTab('finanzas')" id="btn-finanzas" class="nav-btn flex-1"><i class="fas fa-chart-pie mr-2"></i> REPORTES</button>
+        </div>
+
+        <div id="vender" class="section glass-card p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-8">
+                <div class="md:w-1/2 space-y-5">
+                    <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+                        <h3 class="font-bold text-white mb-4">Seleccionar Producto</h3>
+                        <div class="space-y-3">
+                            <select id="saleProdSelect" class="input-modern cursor-pointer font-medium"></select>
+                            <input type="text" id="saleItemDesc" class="input-modern" placeholder="Detalle (Color, Talla...)">
+                            <div class="flex gap-2">
+                                <input type="number" id="saleQty" value="1" min="1" class="input-modern w-1/3 text-center font-bold text-lg">
+                                <button onclick="addItemToSale()" class="w-2/3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition">AGREGAR +</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="md:w-1/2 flex flex-col">
+                    <div class="bg-slate-800/50 rounded-2xl border border-slate-700 flex-1 flex flex-col mb-4 min-h-[200px] overflow-hidden">
+                        <div class="bg-slate-900/50 p-3 text-xs font-bold text-slate-400 flex justify-between"><span>Item</span><span>Subtotal</span></div>
+                        <div id="saleItemsList" class="flex-1 overflow-y-auto p-2 space-y-1"><p class="text-center text-slate-500 italic mt-10">Carrito Vacío</p></div>
+                        <div class="bg-slate-900 p-4 flex justify-between items-center text-white border-t border-slate-700">
+                            <span class="font-bold text-slate-400">TOTAL:</span><span id="displayTotal" class="text-2xl font-bold text-cyan-400">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="relative">
+                            <span class="absolute left-4 top-3.5 text-slate-500 font-bold">$</span>
+                            <input type="number" id="payAmount" placeholder="Monto Pagado" class="input-modern pl-8 font-bold text-xl" oninput="updateCalculations()">
+                        </div>
+                        <div class="border border-orange-500/30 bg-orange-500/10 rounded-xl overflow-hidden">
+                            <button onclick="toggleBsCalc()" class="w-full p-3 flex justify-between text-orange-400 font-bold text-sm hover:bg-orange-500/20 transition"><span><i class="fas fa-calculator"></i> ¿Pago en Bolívares?</span> <i class="fas fa-chevron-down"></i></button>
+                            <div id="bsCalc" class="hidden p-3 bg-slate-900/50 border-t border-orange-500/20 grid grid-cols-2 gap-2">
+                                <input type="number" id="bsReceived" class="input-modern text-sm" placeholder="Bs Recibidos" oninput="calcBs()">
+                                <input type="number" id="bsRate" class="input-modern text-sm" placeholder="Tasa" oninput="calcBs()">
+                                <div class="col-span-2 text-center text-xs pt-2 text-slate-400">Real: <b id="usdResult" class="text-green-400">$0.00</b> <span id="lossText" class="text-red-400 ml-2"></span></div>
+                            </div>
+                        </div>
+                        <input type="text" id="saleClient" placeholder="Cliente" class="input-modern text-sm">
+                        <div class="flex justify-end"><span id="debtLabel" class="text-xs font-bold bg-red-500/20 text-red-400 px-2 py-1 rounded hidden"></span></div>
+                        <button onclick="finishSale()" class="w-full btn-primary py-4 rounded-xl shadow-lg text-lg tracking-wide">CONFIRMAR VENTA</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="inventario" class="section hidden glass-card p-6 mb-8">
+            <form id="prodForm" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                <div class="md:col-span-2"><input type="text" id="pName" class="input-modern" placeholder="Nombre" required></div>
+                <div><input type="number" id="pCost" class="input-modern" placeholder="Costo" step="0.01" required></div>
+                <div><input type="number" id="pPrice" class="input-modern" placeholder="Venta" step="0.01" required></div>
+                <div><input type="number" id="pStock" class="input-modern" placeholder="Stock" required></div>
+                <button class="btn-primary rounded-xl shadow-md md:col-span-5 py-3">GUARDAR</button>
+            </form>
+            <div class="bg-slate-800/50 rounded-xl shadow-sm overflow-hidden border border-slate-700">
+                <table class="w-full text-sm text-left"><thead class="bg-slate-900 text-slate-400 font-bold text-xs uppercase"><tr><th class="p-4">Producto</th><th>Costo</th><th>Venta</th><th>Stock</th><th class="text-center">Acción</th></tr></thead><tbody id="invTable" class="divide-y divide-slate-700"></tbody></table>
+            </div>
+        </div>
+
+        <div id="historial" class="section hidden glass-card p-6 mb-8">
+            <div class="overflow-x-auto bg-slate-800/50 rounded-xl border border-slate-700">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-900 text-slate-400 font-bold text-xs uppercase"><tr><th class="p-4">Fecha</th><th>Detalle</th><th class="text-right">Total</th><th class="p-4 w-48">Abonos</th><th class="text-right text-red-400">Deuda</th><th class="text-center">Estado</th></tr></thead>
+                    <tbody id="histTable" class="divide-y divide-slate-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="finanzas" class="section hidden space-y-6">
+            <div class="glass-card p-6">
+                <div class="flex justify-between mb-4"><h3 class="font-bold text-white">Reporte Financiero</h3><div class="flex gap-1"><button onclick="renderReport('monthly')" class="px-3 py-1 bg-slate-700 rounded text-xs font-bold text-slate-300 hover:bg-slate-600">Mes</button><button onclick="renderReport('quarterly')" class="px-3 py-1 bg-slate-700 rounded text-xs font-bold text-slate-300 hover:bg-slate-600">Trimestre</button></div></div>
+                <div class="overflow-x-auto bg-slate-800/50 rounded-xl border border-slate-700"><table class="w-full text-sm text-left"><thead class="bg-slate-900 text-cyan-400 text-xs uppercase"><tr><th class="p-3">Periodo</th><th class="text-right">Venta</th><th class="text-right text-orange-400">Pérdida</th><th class="text-right text-slate-400">Costo</th><th class="text-right text-green-400 font-bold">Ganancia</th></tr></thead><tbody id="reportTable" class="divide-y divide-slate-700 text-slate-300"></tbody></table></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card p-6 h-80"><h3 class="font-bold text-slate-300 mb-4 border-b border-slate-700 pb-2">Top Productos</h3><div class="h-64 relative"><canvas id="productChart"></canvas></div></div>
+                <div class="glass-card p-6 h-80"><h3 class="font-bold text-slate-300 mb-4 border-b border-slate-700 pb-2">Distribución</h3><div class="h-64 relative"><canvas id="mainChart"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = "https://script.google.com/macros/s/AKfycbxuqLzEsSeNKmM8QLp4Sjg5iWlE-D8Ny2V6L9Y9QjMJC6zAjBGBNuFAxGcL8XIyKVefcw/exec";
+        let DB = { products: [], moves: [], pin: null };
+        let cart = [];
+        let myChart = null, prodChart = null;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        Chart.defaults.font.family = 'Poppins'; Chart.defaults.color = '#94a3b8'; Chart.register(ChartDataLabels);
+
+        // --- INICIO PRIORITARIO ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadLocalData(); // 1. Carga lo que haya en el cache
+            
+            // 2. Sincroniza con la nube ANTES de mostrar la pantalla de login
+            // Esto evita que muestre "Crear PIN" si la nube ya tiene uno.
+            await initialSync();
+        });
+
+        async function initialSync() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos espera máxima
+                
+                const req = await fetch(API, { signal: controller.signal });
+                const cloud = await req.json();
+                clearTimeout(timeoutId);
+
+                if(cloud.products) DB.products = cloud.products;
+                if(cloud.moves) DB.moves = cloud.moves;
+                
+                // CRÍTICO: Obtener el PIN de la nube
+                if(cloud.config && cloud.config.pin) {
+                    DB.pin = cloud.config.pin;
+                    console.log("PIN sincronizado desde la nube");
+                }
+                
+                saveLocal();
+                updateCloudStatus('online');
+            } catch(e) {
+                console.log("Offline mode", e);
+                updateCloudStatus('offline');
+            }
+
+            // 3. AHORA SÍ DECIDIR QUÉ PANTALLA MOSTRAR
+            document.getElementById('loadingState').classList.add('hidden');
+            
+            if(!DB.pin) {
+                // Si ni local ni nube tienen PIN -> Setup
+                document.getElementById('setupState').classList.remove('hidden');
+            } else {
+                // Si hay PIN, mostrar Login (o desbloquear si ya hay sesión)
+                if(sessionStorage.getItem('nmd_auth')) unlock(true);
+                else document.getElementById('loginState').classList.remove('hidden');
+            }
+        }
+
+        function loadLocalData() { const v46 = JSON.parse(localStorage.getItem('nomedyc_db_v49')); if(v46) DB = v46; }
+        function saveLocal() { localStorage.setItem('nomedyc_db_v49', JSON.stringify(DB)); }
+        
+        async function saveCloud(force = false) {
+            saveLocal(); updateCloudStatus('syncing');
+            try { 
+                await fetch(API, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify({products:DB.products, moves:DB.moves, config:{pin:DB.pin}}) }); 
+                setTimeout(()=> {
+                    updateCloudStatus('online');
+                    if(force) alert("✅ Guardado en Nube con éxito");
+                }, 1500); 
+            } catch(e){ updateCloudStatus('offline'); if(force) alert("❌ Error de conexión"); }
+        }
+        function updateCloudStatus(s) {
+            const dot = document.getElementById('statusDot'); const txt = document.getElementById('statusText');
+            if(s==='online') { dot.className='w-2 h-2 rounded-full bg-green-400 box-shadow-green'; txt.innerText='ONLINE'; txt.className='text-green-400'; }
+            else if(s==='syncing') { dot.className='w-2 h-2 rounded-full bg-orange-400 animate-ping'; txt.innerText='SYNC...'; txt.className='text-orange-400'; }
+            else { dot.className='w-2 h-2 rounded-full bg-slate-600'; txt.innerText='LOCAL'; txt.className='text-slate-500'; }
+        }
+
+        // --- SECURITY & ALARM ---
+        function playAlarm() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth'; osc.frequency.value = 110;
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); 
+            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function unlock(render = true) {
+            document.getElementById('loginOverlay').classList.add('hidden'); document.getElementById('appContent').classList.remove('hidden');
+            if(render) { renderInv(); renderHist(); updateKpi(); loadSelect(); }
+        }
+        
+        function attemptLogin() {
+            const input = document.getElementById('pinInput');
+            if(input.value === DB.pin) {
+                sessionStorage.setItem('nmd_auth','true'); unlock(true);
+            } else {
+                playAlarm();
+                const overlay = document.getElementById('loginOverlay');
+                const card = document.getElementById('loginState');
+                const banner = document.getElementById('errorBanner');
+                overlay.classList.add('alarm-bg'); card.classList.add('card-error'); banner.classList.remove('hidden');
+                setTimeout(() => { overlay.classList.remove('alarm-bg'); card.classList.remove('card-error'); banner.classList.add('hidden'); input.value = ''; input.focus(); }, 2000);
+            }
+        }
+        async function createMasterPin() { const p = document.getElementById('newPinInput').value; if(p.length<4) return alert("Mínimo 4 dígitos"); DB.pin = p; saveLocal(); await saveCloud(); unlock(true); }
+        async function changePin() { if(prompt("PIN Actual:") !== DB.pin) return alert("Error"); const n = prompt("Nuevo PIN:"); if(n && n.length>=4) { DB.pin = n; saveLocal(); saveCloud(); alert("Listo"); } }
+
+        // --- APP CORE ---
+        function initApp() { renderInv(); renderHist(); updateKpi(); loadSelect(); }
+        window.showTab = (id) => {
+            document.querySelectorAll('.section').forEach(x=>x.classList.add('hidden')); document.getElementById(id).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active')); document.getElementById('btn-'+id).classList.add('active');
+            if(id==='finanzas'){ updateKpi(); renderReport('monthly'); }
+        }
+        document.getElementById('prodForm').addEventListener('submit',e=>{e.preventDefault();DB.products.push({id:Date.now(),name:document.getElementById('pName').value,cost:parseFloat(document.getElementById('pCost').value),price:parseFloat(document.getElementById('pPrice').value),stock:parseInt(document.getElementById('pStock').value)});saveCloud();renderInv();loadSelect();e.target.reset();});
+        function renderInv(){document.getElementById('invTable').innerHTML=DB.products.map(p=>`<tr class="border-b border-slate-700 hover:bg-slate-800/50 transition"><td class="p-4 font-bold text-slate-200">${p.name}</td><td class="text-slate-400">$${p.cost.toFixed(2)}</td><td class="font-bold text-cyan-400">$${p.price.toFixed(2)}</td><td class="font-bold ${p.stock<5?'text-red-400':'text-green-400'}">${p.stock}</td><td class="text-center"><button onclick="addStk(${p.id})" class="text-green-400 hover:bg-green-900/30 p-2 rounded mr-2"><i class="fas fa-plus-circle"></i></button><button onclick="delProd(${p.id})" class="text-red-400 hover:bg-red-900/30 p-2 rounded"><i class="fas fa-trash"></i></button></td></tr>`).join('');}
+        window.addStk=(id)=>{const q=prompt("Cant:");if(q>0){DB.products.find(p=>p.id==id).stock+=parseInt(q);saveCloud();renderInv();}}
+        window.delProd=(id)=>{if(confirm("Borrar?")){DB.products=DB.products.filter(p=>p.id!=id);saveCloud();renderInv();}}
+        function loadSelect(){const s=document.getElementById('saleProdSelect');s.innerHTML='<option value="">-- Seleccione --</option>';DB.products.forEach(p=>s.innerHTML+=`<option value="${p.id}">${p.name} ($${p.price})</option>`);}
+        window.addItemToSale=()=>{const id=document.getElementById('saleProdSelect').value;const p=DB.products.find(x=>x.id==id);if(!p)return;cart.push({...p,qty:parseInt(document.getElementById('saleQty').value),desc:document.getElementById('saleItemDesc').value,snapCost:p.cost});renderCart();}
+        function renderCart(){let t=0;document.getElementById('saleItemsList').innerHTML=cart.map((i,x)=>{t+=i.price*i.qty;return `<div class="flex justify-between border-b border-slate-700 p-2 items-center bg-slate-800/50 rounded mb-1"><div><span class="font-bold text-slate-200">${i.qty} x ${i.name}</span><br><span class="text-xs text-slate-400">${i.desc||''}</span></div><div class="text-right font-bold text-slate-200">$${(i.price*i.qty).toFixed(2)} <i class="fas fa-times text-red-400 ml-2 cursor-pointer" onclick="cart.splice(${x},1);renderCart()"></i></div></div>`}).join('');document.getElementById('displayTotal').innerText=`$${t.toFixed(2)}`;updateCalculations();}
+        window.toggleBsCalc=()=>document.getElementById('bsCalc').classList.toggle('hidden');
+        window.calcBs=()=>{const bs=parseFloat(document.getElementById('bsReceived').value)||0,rate=parseFloat(document.getElementById('bsRate').value)||1,usd=bs/rate;document.getElementById('usdResult').innerText=`$${usd.toFixed(2)}`;const pay=parseFloat(document.getElementById('payAmount').value)||0;if(pay>0)document.getElementById('lossText').innerText=`-$${(pay-usd).toFixed(2)}`;}
+        window.updateCalculations=()=>{const t=parseFloat(document.getElementById('displayTotal').innerText.replace('$','')),p=parseFloat(document.getElementById('payAmount').value)||0,l=document.getElementById('debtLabel');if(p<t){l.innerText=`Deuda: $${(t-p).toFixed(2)}`;l.classList.remove('hidden');}else l.classList.add('hidden');calcBs();}
+        window.finishSale=()=>{if(!cart.length)return alert("Vacío");const total=parseFloat(document.getElementById('displayTotal').innerText.replace('$','')),paid=parseFloat(document.getElementById('payAmount').value)||0;let real=paid,loss=0;if(!document.getElementById('bsCalc').classList.contains('hidden')){const bsR=parseFloat(document.getElementById('usdResult').innerText.replace('$',''))||0;if(bsR>0){real=bsR;const eff=paid>total?total:paid;loss=eff-real;}}const debt=total>paid?total-paid:0;cart.forEach(i=>{const p=DB.products.find(x=>x.id==i.id);if(p)p.stock-=i.qty;});DB.moves.unshift({id:Date.now(),date:new Date().toLocaleString(),client:document.getElementById('saleClient').value||'General',items:cart,total,paid,debt,realIncome:real,loss,logs:paid>0?[{d:new Date().toLocaleDateString(),a:paid}]:[]});saveCloud();cart=[];renderCart();renderInv();renderHist();updateKpi();document.getElementById('payAmount').value='';showTab('historial');}
+        function renderHist(){document.getElementById('histTable').innerHTML=DB.moves.map(m=>{const items=(Array.isArray(m.items)?m.items:[]).map(i=>`${i.qty}x ${i.name}`).join(', '),logs=(m.logs||[]).map(l=>`<div class="log-entry flex justify-between"><span>${l.d}</span> <span class="text-green-400">$${l.a}</span></div>`).join(''),btn=m.debt>0.01?`<button onclick="payDebt(${m.id})" class="text-blue-400 font-bold text-xs hover:text-blue-300">Abonar</button>`:`<span class="text-green-400 font-bold text-xs">Pagado</span>`;return `<tr class="border-b border-slate-700 hover:bg-slate-800/50 transition align-top"><td class="p-4 text-xs text-slate-400">${m.date}<br><b class="text-slate-200">${m.client}</b></td><td class="p-4 text-sm text-slate-300">${items}</td><td class="text-right font-bold text-slate-200 p-4">$${m.total.toFixed(2)}</td><td class="p-4"><div class="max-h-24 overflow-y-auto border border-slate-600 rounded bg-slate-900/50 p-1 w-40">${logs||'-'}</div></td><td class="text-right text-red-400 font-bold p-4">$${m.debt.toFixed(2)}</td><td class="text-center p-4">${btn} <i class="fas fa-trash text-slate-600 hover:text-red-400 ml-2 cursor-pointer" onclick="delMove(${m.id})"></i></td></tr>`;}).join('');}
+        window.payDebt=(id)=>{const m=DB.moves.find(x=>x.id==id),a=parseFloat(prompt(`Deuda: ${m.debt}. Abonar:`));if(a>0&&a<=m.debt+0.1){m.paid+=a;m.debt-=a;if(m.debt<0)m.debt=0;m.realIncome+=a;if(!m.logs)m.logs=[];m.logs.push({d:new Date().toLocaleDateString(),a});saveCloud();renderHist();updateKpi();}}
+        window.delMove=(id)=>{if(confirm("Anular?")){const idx=DB.moves.findIndex(x=>x.id==id);if(idx>-1){const mov=DB.moves[idx];if(Array.isArray(mov.items))mov.items.forEach(i=>{const p=DB.products.find(x=>x.id==i.id);if(p)p.stock+=i.qty;});DB.moves.splice(idx,1);saveCloud();renderInv();renderHist();updateKpi();}}}
+        function updateKpi(){const total=DB.moves.reduce((s,m)=>s+(m.total||0),0),debt=DB.moves.reduce((s,m)=>s+(m.debt||0),0),loss=DB.moves.reduce((s,m)=>s+(m.loss||0),0);let cost=0;DB.moves.forEach(m=>{if(Array.isArray(m.items))m.items.forEach(i=>{const c=i.snapCost||DB.products.find(x=>x.id==i.id)?.cost||0;cost+=c*i.qty;})});const real=DB.moves.reduce((s,m)=>s+(m.realIncome||0),0);document.getElementById('dashTotal').innerText=`$${total.toFixed(2)}`;document.getElementById('dashLoss').innerText=`$${loss.toFixed(2)}`;document.getElementById('dashProfit').innerText=`$${(real-cost).toFixed(2)}`;document.getElementById('dashDebt').innerText=`$${debt.toFixed(2)}`;const ctxP=document.getElementById('productChart').getContext('2d');if(prodChart)prodChart.destroy();const stats={};DB.moves.forEach(m=>{if(Array.isArray(m.items))m.items.forEach(i=>{if(!stats[i.name])stats[i.name]=0;stats[i.name]+=i.qty;})});prodChart=new Chart(ctxP,{type:'bar',data:{labels:Object.keys(stats).slice(0,5),datasets:[{label:'Unidades',data:Object.values(stats).slice(0,5),backgroundColor:'#06b6d4',borderRadius:6,datalabels:{color:'white',anchor:'end',align:'top',offset:-20}}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,grid:{display:true,color:'#334155'}},x:{grid:{display:false}}},plugins:{legend:{display:false},datalabels:{display:true}}}});const ctxM=document.getElementById('mainChart').getContext('2d');if(myChart)myChart.destroy();myChart=new Chart(ctxM,{type:'doughnut',data:{labels:['Ganancia','Costo','Pérdida'],datasets:[{data:[real-cost,cost,loss],backgroundColor:['#4ade80','#94a3b8','#f97316'],borderWidth:0,datalabels:{color:'white',font:{weight:'bold'},formatter:(val,ctx)=>{let sum=ctx.dataset.data.reduce((a,b)=>a+b,0);let perc=(val*100/sum).toFixed(0)+"%";return ctx.chart.data.labels[ctx.dataIndex]+"\n"+perc;}}}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{usePointStyle:true,color:'#94a3b8'}},datalabels:{display:true,textAlign:'center'}}}});}
+        window.renderReport=(type)=>{const tb=document.getElementById('reportTable');tb.innerHTML='';const p={};DB.moves.forEach(m=>{let d;if(m.date.includes(',')){const parts=m.date.split(',')[0].split('/');if(parts.length===3)d=new Date(parts[2],parts[1]-1,parts[0]);}if(!d||isNaN(d))d=new Date(m.date);if(isNaN(d))d=new Date();const year=d.getFullYear(),month=d.getMonth();let k,l;if(type==='monthly'){k=`${year}-${month}`;l=`${["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][month]} ${year}`;}else if(type==='quarterly'){const q=Math.floor(month/3)+1;k=`${year}-Q${q}`;l=`Trim ${q} ${year}`;}else{const s=Math.floor(month/6)+1;k=`${year}-S${s}`;l=`Sem ${s} ${year}`;}if(!p[k])p[k]={l:l,sales:0,loss:0,real:0,cost:0};p[k].sales+=m.total;p[k].loss+=(m.loss||0);p[k].real+=(m.realIncome||m.paid);if(Array.isArray(m.items))m.items.forEach(i=>{const c=i.snapCost||DB.products.find(x=>x.id==i.id)?.cost||0;p[k].cost+=(c*i.qty);});});Object.keys(p).sort().reverse().forEach(k=>{const d=p[k],profit=d.real-d.cost;tb.innerHTML+=`<tr class="border-b border-slate-700 hover:bg-slate-800/30 transition"><td class="p-4 font-bold text-slate-200">${d.l}</td><td class="text-right font-medium text-slate-400">$${d.sales.toFixed(2)}</td><td class="text-right text-orange-400 font-bold">-$${d.loss.toFixed(2)}</td><td class="text-right text-slate-500">$${d.cost.toFixed(2)}</td><td class="text-right font-bold text-green-400 text-lg">$${profit.toFixed(2)}</td></tr>`;});}
+        window.backupData=()=>{const a=document.createElement('a');a.href="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(DB));a.download=`backup_nmd.json`;a.click();}
+        window.processRestore=(inp)=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.products){DB=d;saveCloud();location.reload();}}catch(x){alert("Error")}};r.readAsText(f);inp.value='';}
+        window.exportToExcel=()=>{const ws1=XLSX.utils.json_to_sheet(DB.products);const ws2=XLSX.utils.json_to_sheet(DB.moves.map(m=>({Fecha:m.date,Total:m.total,Real:m.realIncome})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws1,"Inv");XLSX.utils.book_append_sheet(wb,ws2,"Ventas");XLSX.writeFile(wb,"Reporte.xlsx");}
+    </script>
+</body>
+</html>
