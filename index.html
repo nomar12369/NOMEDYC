@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nomedyc v5.2 - Sync Force</title>
+    <title>Nomedyc v5.1 - MultiSync</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -16,7 +16,7 @@
 
         body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; color: #e2e8f0; background-attachment: fixed; }
         
-        /* CYBER THEME */
+        /* Glass Theme */
         .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
         .btn-primary { background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%); color: white; font-weight: 700; transition: all 0.2s; box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(6, 182, 212, 0.5); }
@@ -26,10 +26,10 @@
         .nav-btn.active { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.2); }
         #loginOverlay { background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(20px); z-index: 100; }
 
-        /* EFECTOS MIEDO */
+        /* Error FX */
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-        .alarm-bg { background: radial-gradient(circle, rgba(220,38,38,0.6) 0%, rgba(0,0,0,1) 100%) !important; }
-        .card-error { border: 2px solid #ef4444 !important; box-shadow: 0 0 50px rgba(239, 68, 68, 0.8) !important; animation: shake 0.4s ease-in-out; }
+        .alarm-bg { background: radial-gradient(circle, rgba(220,38,38,0.4) 0%, rgba(0,0,0,1) 100%) !important; }
+        .card-error { border: 2px solid #ef4444 !important; box-shadow: 0 0 50px rgba(239, 68, 68, 0.6) !important; animation: shake 0.4s ease-in-out; }
         .hacker-text { font-family: 'Share Tech Mono', monospace; color: #ef4444 !important; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
@@ -37,34 +37,30 @@
 
     <div id="loginOverlay" class="fixed inset-0 flex flex-col items-center justify-center p-4">
         
-        <div id="loadingState" class="text-center glass-card p-8 w-full max-w-sm">
-            <div class="animate-spin text-5xl text-cyan-400 mb-6 mx-auto"><i class="fas fa-satellite-dish"></i></div>
-            <h2 class="text-xl font-bold text-white mb-2">Verificando Seguridad...</h2>
-            <p class="text-slate-400 text-xs mb-4">Consultando base de datos en la nube</p>
-            <div class="w-full bg-slate-700 rounded-full h-2 mb-4 overflow-hidden">
-                <div class="bg-cyan-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
-            </div>
-            <button onclick="initialSync()" class="text-xs text-cyan-500 underline hover:text-white">Reintentar conexión</button>
+        <div id="loadingState" class="text-center">
+            <div class="animate-spin text-5xl text-cyan-400 mb-4"><i class="fas fa-satellite-dish"></i></div>
+            <h2 class="text-xl font-bold text-white mb-1">Conectando Base de Datos...</h2>
+            <p class="text-slate-400 text-xs">Sincronizando seguridad</p>
         </div>
 
-        <div id="loginState" class="glass-card p-8 w-full max-w-sm text-center hidden relative overflow-hidden transition-all">
+        <div id="loginState" class="glass-card p-8 w-full max-w-sm text-center hidden relative overflow-hidden">
             <div class="text-5xl mb-4 text-cyan-400"><i class="fas fa-fingerprint"></i></div>
             <h2 class="text-2xl font-bold text-white mb-2">ACCESO RESTRINGIDO</h2>
-            <p class="text-sm text-slate-400 mb-6">Sistema Protegido</p>
+            <p class="text-sm text-slate-400 mb-6">Ingrese credenciales</p>
             <input type="password" id="pinInput" placeholder="••••" maxlength="4" class="text-center text-4xl font-bold tracking-[0.5em] w-full input-modern mb-6 focus:ring-0">
             <button onclick="attemptLogin()" class="w-full btn-primary py-3 rounded-xl text-lg shadow-lg">DESBLOQUEAR</button>
             
-            <div id="errorBanner" class="absolute top-0 left-0 w-full h-full bg-red-900/95 flex flex-col items-center justify-center hidden z-20 backdrop-blur-sm">
+            <div id="errorBanner" class="absolute top-0 left-0 w-full h-full bg-red-900/95 flex flex-col items-center justify-center hidden z-20">
                 <i class="fas fa-hand-paper text-6xl text-white mb-4 animate-pulse"></i>
-                <h1 class="text-3xl font-bold text-white hacker-text">ACCESO DENEGADO</h1>
-                <p class="text-red-200 mt-2 text-sm font-mono">IP REGISTRADA</p>
+                <h1 class="text-3xl font-bold text-white hacker-text">PIN INCORRECTO</h1>
+                <p class="text-red-200 mt-2 text-sm">Intento registrado</p>
             </div>
         </div>
         
         <div id="setupState" class="glass-card p-8 w-full max-w-sm text-center hidden">
-            <div class="text-5xl mb-4 text-purple-400"><i class="fas fa-key"></i></div>
+            <div class="text-5xl mb-4 text-green-400"><i class="fas fa-shield-alt"></i></div>
             <h2 class="text-xl font-bold text-white">Configuración Inicial</h2>
-            <p class="text-sm text-slate-400 mb-6 mt-2">No se detectó seguridad en la nube.<br>Cree un PIN Maestro:</p>
+            <p class="text-sm text-slate-400 mb-6 mt-2">Cree un PIN Maestro para todos sus dispositivos</p>
             <input type="text" id="newPinInput" placeholder="1234" maxlength="4" class="text-center text-3xl font-bold w-full input-modern mb-6">
             <button onclick="createMasterPin()" class="w-full btn-primary py-3 rounded-xl">GUARDAR EN NUBE</button>
         </div>
@@ -75,13 +71,13 @@
             <div class="flex items-center gap-4">
                 <div class="bg-cyan-500/20 p-3 rounded-full text-cyan-400 text-2xl shadow-[0_0_15px_rgba(34,211,238,0.3)]"><i class="fas fa-cube"></i></div>
                 <div>
-                    <h1 class="text-2xl font-extrabold text-white tracking-wider">Nomedyc <span class="text-cyan-400 text-sm bg-cyan-900/30 px-2 py-0.5 rounded">v5.2</span></h1>
+                    <h1 class="text-2xl font-extrabold text-white tracking-wider">Nomedyc <span class="text-cyan-400 text-sm bg-cyan-900/30 px-2 py-0.5 rounded">v5.1</span></h1>
                     <div id="cloudStatus" class="text-[10px] font-bold text-slate-400 flex items-center gap-2 mt-1 uppercase tracking-widest"><span class="w-2 h-2 rounded-full bg-green-400 box-shadow-green"></span> Online</div>
                 </div>
             </div>
             <div class="flex gap-2">
                 <button onclick="changePin()" class="px-4 py-2 bg-slate-700/50 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 border border-slate-600 transition"><i class="fas fa-lock"></i> PIN</button>
-                <button onclick="saveCloud(true)" class="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-600/30 border border-blue-500/30 transition"><i class="fas fa-cloud-upload-alt"></i> Forzar Guardado</button>
+                <button onclick="backupData()" class="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-600/30 border border-blue-500/30 transition"><i class="fas fa-save"></i> Respaldo</button>
                 <button onclick="exportToExcel()" class="px-4 py-2 bg-green-600/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-600/30 border border-green-500/30 transition"><i class="fas fa-file-csv"></i> Excel</button>
             </div>
         </div>
@@ -190,6 +186,8 @@
         </div>
     </div>
 
+    <input type="file" id="fileInput" class="hidden" accept=".json" onchange="processRestore(this)">
+
     <script>
         const API = "https://script.google.com/macros/s/AKfycbxuqLzEsSeNKmM8QLp4Sjg5iWlE-D8Ny2V6L9Y9QjMJC6zAjBGBNuFAxGcL8XIyKVefcw/exec";
         let DB = { products: [], moves: [], pin: null };
@@ -199,19 +197,20 @@
 
         Chart.defaults.font.family = 'Poppins'; Chart.defaults.color = '#94a3b8'; Chart.register(ChartDataLabels);
 
-        // --- INICIO PRIORITARIO ---
+        // --- LOGICA DE ARRANQUE PRIORITARIA ---
         document.addEventListener('DOMContentLoaded', async () => {
-            loadLocalData(); // 1. Carga lo que haya en el cache
+            // 1. Cargar lo que tengamos localmente (aunque sea viejo o nulo)
+            loadLocalData();
             
-            // 2. Sincroniza con la nube ANTES de mostrar la pantalla de login
-            // Esto evita que muestre "Crear PIN" si la nube ya tiene uno.
+            // 2. Iniciar sincronización FORZADA antes de decidir pantalla
             await initialSync();
         });
 
         async function initialSync() {
             try {
+                // Timeout de 5 segs para no colgar la app si no hay internet
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos espera máxima
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 
                 const req = await fetch(API, { signal: controller.signal });
                 const cloud = await req.json();
@@ -219,54 +218,44 @@
 
                 if(cloud.products) DB.products = cloud.products;
                 if(cloud.moves) DB.moves = cloud.moves;
-                
-                // CRÍTICO: Obtener el PIN de la nube
-                if(cloud.config && cloud.config.pin) {
-                    DB.pin = cloud.config.pin;
-                    console.log("PIN sincronizado desde la nube");
-                }
+                if(cloud.config?.pin) DB.pin = cloud.config.pin; // <-- IMPORTANTE: Traer PIN de la nube
                 
                 saveLocal();
                 updateCloudStatus('online');
             } catch(e) {
-                console.log("Offline mode", e);
+                console.log("Offline init");
                 updateCloudStatus('offline');
             }
 
-            // 3. AHORA SÍ DECIDIR QUÉ PANTALLA MOSTRAR
+            // 3. AHORA DECIDIMOS QUE PANTALLA MOSTRAR
             document.getElementById('loadingState').classList.add('hidden');
             
             if(!DB.pin) {
-                // Si ni local ni nube tienen PIN -> Setup
+                // Si no hay PIN ni local ni en nube -> Setup
                 document.getElementById('setupState').classList.remove('hidden');
             } else {
-                // Si hay PIN, mostrar Login (o desbloquear si ya hay sesión)
+                // Si hay PIN, verificar si ya estamos logueados
                 if(sessionStorage.getItem('nmd_auth')) unlock(true);
                 else document.getElementById('loginState').classList.remove('hidden');
             }
         }
 
-        function loadLocalData() { const v46 = JSON.parse(localStorage.getItem('nomedyc_db_v49')); if(v46) DB = v46; }
+        function loadLocalData() { const v46 = JSON.parse(localStorage.getItem('nomedyc_db_v49')); if(v46) DB = v46; else { const vOld = JSON.parse(localStorage.getItem('nomedyc_db_v46')); if(vOld) DB = vOld; } }
         function saveLocal() { localStorage.setItem('nomedyc_db_v49', JSON.stringify(DB)); }
         
-        async function saveCloud(force = false) {
+        // --- RESTO DEL SISTEMA ---
+        async function saveCloud() {
             saveLocal(); updateCloudStatus('syncing');
-            try { 
-                await fetch(API, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify({products:DB.products, moves:DB.moves, config:{pin:DB.pin}}) }); 
-                setTimeout(()=> {
-                    updateCloudStatus('online');
-                    if(force) alert("✅ Guardado en Nube con éxito");
-                }, 1500); 
-            } catch(e){ updateCloudStatus('offline'); if(force) alert("❌ Error de conexión"); }
+            try { await fetch(API, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify({products:DB.products, moves:DB.moves, config:{pin:DB.pin}}) }); setTimeout(()=>updateCloudStatus('online'), 1500); } catch(e){ updateCloudStatus('offline'); }
         }
         function updateCloudStatus(s) {
-            const dot = document.getElementById('statusDot'); const txt = document.getElementById('statusText');
-            if(s==='online') { dot.className='w-2 h-2 rounded-full bg-green-400 box-shadow-green'; txt.innerText='ONLINE'; txt.className='text-green-400'; }
-            else if(s==='syncing') { dot.className='w-2 h-2 rounded-full bg-orange-400 animate-ping'; txt.innerText='SYNC...'; txt.className='text-orange-400'; }
-            else { dot.className='w-2 h-2 rounded-full bg-slate-600'; txt.innerText='LOCAL'; txt.className='text-slate-500'; }
+            const el = document.getElementById('cloudStatus');
+            if(s==='online') el.innerHTML='<span class="w-2 h-2 rounded-full bg-green-400 box-shadow-green"></span> Online';
+            else if(s==='syncing') el.innerHTML='<span class="w-2 h-2 rounded-full bg-orange-400 animate-ping"></span> Sync...';
+            else el.innerHTML='<span class="w-2 h-2 rounded-full bg-slate-600"></span> Offline';
         }
 
-        // --- SECURITY & ALARM ---
+        // --- SEGURIDAD Y ALARMA ---
         function playAlarm() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
@@ -286,6 +275,7 @@
         
         function attemptLogin() {
             const input = document.getElementById('pinInput');
+            // Compara con DB.pin que YA fue actualizado desde la nube al inicio
             if(input.value === DB.pin) {
                 sessionStorage.setItem('nmd_auth','true'); unlock(true);
             } else {
@@ -297,10 +287,11 @@
                 setTimeout(() => { overlay.classList.remove('alarm-bg'); card.classList.remove('card-error'); banner.classList.add('hidden'); input.value = ''; input.focus(); }, 2000);
             }
         }
-        async function createMasterPin() { const p = document.getElementById('newPinInput').value; if(p.length<4) return alert("Mínimo 4 dígitos"); DB.pin = p; saveLocal(); await saveCloud(); unlock(true); }
+        
+        async function createMasterPin() { const p = document.getElementById('newPinInput').value; if(p.length<4) return alert("Mínimo 4"); DB.pin = p; saveLocal(); await saveCloud(); unlock(true); }
         async function changePin() { if(prompt("PIN Actual:") !== DB.pin) return alert("Error"); const n = prompt("Nuevo PIN:"); if(n && n.length>=4) { DB.pin = n; saveLocal(); saveCloud(); alert("Listo"); } }
 
-        // --- APP CORE ---
+        // --- APP CORE (Igual que antes) ---
         function initApp() { renderInv(); renderHist(); updateKpi(); loadSelect(); }
         window.showTab = (id) => {
             document.querySelectorAll('.section').forEach(x=>x.classList.add('hidden')); document.getElementById(id).classList.remove('hidden');
